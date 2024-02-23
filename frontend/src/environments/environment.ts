@@ -4,7 +4,7 @@
 
 export const environment = {
   production: false,
-  baseUrl: 'http://localhost:8080/api',
+  baseUrl: 'http://learning-management-system-backend-api-gateway-1:8080/api',
 };
 
 /*
