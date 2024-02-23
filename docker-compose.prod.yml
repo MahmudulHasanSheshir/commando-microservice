@@ -1,5 +1,3 @@
-# If you encounter problems while building images for services depending on databases, separately startup databases before running this.
-
 version: '3'
 
 services:
@@ -7,65 +5,41 @@ services:
     image: mysql:8.0.30-debian
     ports:
       - 3307:3306
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD']
-      interval: 25s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
-    volumes:
-      - auth-data:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: lms-auth
+    networks:
+      - lms
 
   database-faculty:
     image: mysql:8.0.30-debian
     ports:
       - 3308:3306
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD']
-      interval: 25s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
-    volumes:
-      - faculty-data:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: lms-faculty
+    networks:
+      - lms
 
   database-subject:
     image: mysql:8.0.30-debian
     ports:
       - 3309:3306
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD']
-      interval: 25s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
-    volumes:
-      - subject-data:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: lms-subject
+    networks:
+      - lms
 
   database-exam:
     image: mysql:8.0.30-debian
     ports:
       - 3310:3306
-    volumes:
-      - exam-data:/var/lib/mysql
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD']
-      interval: 25s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: lms-exam
+    networks:
+      - lms
 
   backend-config-server:
     build:
@@ -73,14 +47,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - 8888:8888
-    healthcheck:
-      test: wget --spider --quiet 'http://localhost:8888/actuator/health/' || exit 1
-      interval: 25s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
     environment:
       SPRING_PROFILES_ACTIVE: prod, native
+    networks:
+      - lms
 
   backend-discovery-server:
     build:
@@ -88,17 +58,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - 8761:8761
-    healthcheck:
-      test: wget --spider --quiet 'http://localhost:8761/actuator/health/' || exit 1
-      interval: 25s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
-    depends_on:
-      backend-config-server:
-        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - lms
 
   backend-api-gateway:
     build:
@@ -107,10 +70,11 @@ services:
     ports:
       - 8080:8080
     depends_on:
-      backend-discovery-server:
-        condition: service_healthy
+      - backend-discovery-server
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - lms
 
   backend-auth-service:
     build:
@@ -119,12 +83,12 @@ services:
     ports:
       - 8081:8081
     depends_on:
-      backend-discovery-server:
-        condition: service_healthy
-      database-auth:
-        condition: service_healthy
+      - backend-discovery-server
+      - database-auth
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - lms
 
   backend-faculty-service:
     build:
@@ -133,12 +97,12 @@ services:
     ports:
       - 8082:8082
     depends_on:
-      backend-discovery-server:
-        condition: service_healthy
-      database-faculty:
-        condition: service_healthy
+      - backend-discovery-server
+      - database-faculty
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - lms
 
   backend-subject-service:
     build:
@@ -147,12 +111,12 @@ services:
     ports:
       - 8083:8083
     depends_on:
-      backend-discovery-server:
-        condition: service_healthy
-      database-subject:
-        condition: service_healthy
+      - backend-discovery-server
+      - database-subject
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - lms
 
   backend-exam-service:
     build:
@@ -161,12 +125,12 @@ services:
     ports:
       - 8084:8084
     depends_on:
-      backend-discovery-server:
-        condition: service_healthy
-      database-exam:
-        condition: service_healthy
+      - backend-discovery-server
+      - database-exam
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - lms
 
   frontend-app:
     build:
@@ -176,9 +140,9 @@ services:
       - 80:80
     environment:
       PRODUCTION: true
+    networks:
+      - lms
 
-volumes:
-  auth-data:
-  faculty-data:
-  subject-data:
-  exam-data:
+networks:
+  lms:
+    driver: bridge
